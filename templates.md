@@ -73,6 +73,21 @@ Reverse (RFC → PRD):
 |---|---|
 | [REQUIRED] | [REQUIRED] |
 
+#### UI / Consumer Surface Coverage
+| PRD-named surface | Consumer | Required reads (BE endpoint) | Required writes (BE endpoint) | Status surface (which field/event reflects state) |
+|---|---|---|---|---|
+| [REQUIRED — every page/modal/panel/chatbot flow/magic-link view from PRD] | web/chatbot/mobile/support | [REQUIRED] | [REQUIRED] | [REQUIRED] |
+
+#### Role Coverage
+| PRD role | UI surface visibility | Action buttons enabled | Auth scope expected from BE | Notes |
+|---|---|---|---|---|
+| [REQUIRED — every role from PRD, including support / read-only / internal] | [REQUIRED] | [REQUIRED — list disabled buttons for read-only roles] | [REQUIRED] | [REQUIRED] |
+
+#### PRD Section Coverage
+| PRD section # | Title | Where covered (RFC section) or `n/a — reason` |
+|---|---|---|
+| [REQUIRED — one row per numbered PRD section] | [REQUIRED] | [REQUIRED] |
+
 > No-PRD exception: tech-debt or perf RFCs may have no PRD. Replace this matrix with a
 > self-contained problem + success criteria + non-goals statement (max PRT score: 8.0).
 
@@ -138,6 +153,16 @@ For every data-driven surface, define ALL FIVE states.
 - Styling pattern (CSS/SCSS/Tailwind/CSS-in-JS): [REQUIRED]
 - Error boundary / toast / retry pattern + reference file: [REQUIRED]
 - Deviations + ADR reference: [REQUIRED or "none"]
+
+### Detail 2.F — State Surface Contract _(satisfies: CNT)_
+For every entity whose state the FE renders (status badges, progress timelines,
+notification dots, etc.):
+| Entity | State field / event consumed | Default values | Source endpoint / event | Stale-tolerance window |
+|---|---|---|---|---|
+| [REQUIRED] | [REQUIRED] | [REQUIRED] | [REQUIRED] | [REQUIRED] |
+
+> Every UI surface from Detail 1.A that displays state info must trace its
+> contributing fields back to a row here.
 
 ---
 
@@ -311,6 +336,21 @@ Reverse (RFC → PRD):
 |---|---|
 | [REQUIRED] | [REQUIRED] |
 
+#### UI / Consumer Surface Coverage
+| PRD-named surface | Consumer | Required reads | Required writes | Status surface (which field/event reflects state) |
+|---|---|---|---|---|
+| [REQUIRED — every page/modal/panel/chatbot flow/magic-link view from PRD] | web/chatbot/mobile/support | [list endpoint(s) or "n/a — fully covered by writes"] | [list endpoint(s)] | [REQUIRED] |
+
+#### Role Coverage
+| PRD role | Authorization mechanism | Endpoints permitted | Cross-tenant? | Audit trail |
+|---|---|---|---|---|
+| [REQUIRED — every role from PRD, including support / read-only / internal] | [JWT scope / magic-token / service token / IP allowlist] | [REQUIRED] | yes/no | [REQUIRED] |
+
+#### PRD Section Coverage
+| PRD section # | Title | Where covered (RFC section) or `n/a — reason` |
+|---|---|---|
+| [REQUIRED — one row per numbered PRD section] | [REQUIRED] | [REQUIRED] |
+
 > No-PRD exception: tech-debt / infra RFCs may have no PRD. Replace with self-contained
 > problem + success criteria + non-goals (max PRT score: 8.0).
 
@@ -318,6 +358,14 @@ Reverse (RFC → PRD):
 | Decision | Chosen option | Alternatives rejected | Why rejected |
 |---|---|---|---|
 | [REQUIRED] | [REQUIRED] | [REQUIRED] | [REQUIRED] |
+
+The decision table MUST close, at minimum, the following (mark `n/a — reason` if truly inapplicable):
+- Per-status lifecycle for each status enum (retention, visibility, restore semantics)
+- Soft-delete vs hard-delete policy for each entity
+- Cross-squad responsibility for every multi-step flow that spans services
+- Inbound webhook (callback) ownership and shape for every async integration
+- Opt-out / skip / branch policy ownership for non-error flow branches
+- Reuse-vs-new decision for every newly proposed endpoint (`reused` / `extended` / `new-with-justification`)
 
 ---
 
@@ -349,16 +397,30 @@ CREATE INDEX [REQUIRED: name] ON [REQUIRED] ([REQUIRED]);  -- supports query: [R
 - Example rows: [REQUIRED]
 - PII classification per column: [REQUIRED]
 - Retention policy per table: [REQUIRED]
+- **Per-status lifecycle** for every table with a status enum:
+  | Status value | Visibility (default list / archived tab / hidden) | Retention | Restore semantics (allowed / blocked / time-bounded) | Transitions allowed |
+  |---|---|---|---|---|
+  | [REQUIRED — one row per enum value] | [REQUIRED] | [REQUIRED] | [REQUIRED] | [REQUIRED] |
 - Partition / sharding key + rationale: [REQUIRED or "none"]
 - NoSQL alternative considered + why rejected: [REQUIRED]
 
 ### APIs _(satisfies: ACV)_
 [REQUIRED: OpenAPI 3 / Swagger doc link encouraged. Contract MUST be consumer-ready
-before development begins. Review with FE / mobile team for UX feasibility.]
+before development begins. Review with FE / mobile team for UX feasibility.
+List **every** HTTP path the service serves — outbound (callers → us) AND inbound
+webhooks (other services → us). Each gets a row with auth / schema / errors /
+idempotency / versioning. The `Reuse?` column tags the endpoint as `reused` /
+`extended` / `new-with-justification` per Phase 2's Existing API check.]
 
-| Endpoint | Method | AuthN/AuthZ (middleware + scope) | Request schema | Response schema | Status codes | Idempotency mechanism | Versioning |
-|---|---|---|---|---|---|---|---|
-| [REQUIRED] | [REQUIRED] | [REQUIRED] | [REQUIRED] | [REQUIRED] | [REQUIRED] | [REQUIRED] | [REQUIRED] |
+#### Outbound endpoints (consumers call us)
+| Endpoint | Method | AuthN/AuthZ (middleware + scope) | Request schema | Response schema | Status codes | Idempotency mechanism | Versioning | Reuse? |
+|---|---|---|---|---|---|---|---|---|
+| [REQUIRED] | [REQUIRED] | [REQUIRED] | [REQUIRED] | [REQUIRED] | [REQUIRED] | [REQUIRED] | [REQUIRED] | reused / extended / new-with-justification |
+
+#### Inbound webhooks (other services call us)
+| Endpoint | Method | AuthN/AuthZ | Source service | Request schema | Response schema | Status codes | Idempotency mechanism | Versioning |
+|---|---|---|---|---|---|---|---|---|
+| [REQUIRED] | [REQUIRED] | [REQUIRED] | [REQUIRED] | [REQUIRED] | [REQUIRED] | [REQUIRED] | [REQUIRED] | [REQUIRED] |
 
 Per endpoint also include:
 - Example request / response payloads per scenario
@@ -383,6 +445,28 @@ For every background worker / cron / queue consumer / event handler:
 | Job/Consumer | Trigger | Input shape | Retry (attempts + backoff) | DLQ name + retention | Concurrency limit | Idempotency key | Per-message timeout | Poison-message handling |
 |---|---|---|---|---|---|---|---|---|
 | [REQUIRED] | [REQUIRED] | [REQUIRED] | [REQUIRED] | [REQUIRED] | [REQUIRED] | [REQUIRED] | [REQUIRED] | [REQUIRED] |
+
+### Detail 2.D — Responsibility Boundary Matrix _(satisfies: SBC, DEP — required when ≥ 2 services or squads collaborate)_
+
+For every Behavior / flow that spans more than one service:
+
+| Step (in execution order) | Owning squad / service | Inbound trigger | Outbound effect | Failure handler | PRD anchor |
+|---|---|---|---|---|---|
+| [REQUIRED] | [REQUIRED] | [REQUIRED] | [REQUIRED] | [REQUIRED] | [REQUIRED — PRD section / story] |
+
+> Disagreements between this matrix and the PRD's allocation of work between
+> squads are blockers — list them in Open Questions until reconciled.
+
+### Detail 2.E — State Surface Contract _(satisfies: ACV, CNT)_
+
+For every entity whose state is observable to a UI or a downstream consumer:
+
+| Entity | State field / event | Default values | Updated by (handler / job / webhook) | Read via (endpoint / event) | Stale window |
+|---|---|---|---|---|---|
+| [REQUIRED] | [REQUIRED] | [REQUIRED] | [REQUIRED] | [REQUIRED] | [REQUIRED] |
+
+> If a UI surface (Detail 1.A's UI Coverage table) needs progress / timeline /
+> badge data, every contributing field appears here.
 
 ---
 
@@ -413,7 +497,16 @@ of database / queue / dependent services.]
 
 ### Security Implications _(satisfies: SAS, CDG)_
 - Threat model (attacker intent + entry points): [REQUIRED]
-- AuthN / AuthZ at every trust boundary (specific middleware + JWT scopes + role checks): [REQUIRED]
+- AuthN / AuthZ at every trust boundary — express as the matrix below:
+
+#### Role × Endpoint Authorization Matrix
+| Role | Endpoint(s) | Permitted methods | Tenant scope (own / cross-tenant / global) | Additional constraint (e.g. read-only, undo-window) | Audit trail |
+|---|---|---|---|---|---|
+| [REQUIRED — every role from Detail 1.A Role Coverage] | [REQUIRED] | [REQUIRED] | [REQUIRED] | [REQUIRED] | [REQUIRED] |
+
+> Any role from Detail 1.A that has zero rows here is a blocker — either grant
+> access or document why the service does not serve that role.
+
 - Ownership validation (e.g., `order.user_id = jwt.sub`) + enforcement layer: [REQUIRED]
 - Input validation rules per field (length / charset / enum / format / cross-field): [REQUIRED]
 - Injection mitigations (SQL via parameterization/ORM, command, SSRF on outbound URLs): [REQUIRED]
@@ -429,6 +522,15 @@ of database / queue / dependent services.]
 | External call | Timeout | Retries (count + backoff) | Circuit breaker (threshold + window) | DLQ + retention | Caller behavior on persistent failure |
 |---|---|---|---|---|---|
 | [REQUIRED] | [REQUIRED] | [REQUIRED] | [REQUIRED] | [REQUIRED] | [REQUIRED] |
+
+### Detail 3.A.1 — Branch & Skip Catalog _(satisfies: FMC, SBC)_
+
+Non-error flow branches that change downstream behavior (e.g. opt-out → skip,
+suppress flag → skip, dry-run → no-op). Distinct from failure modes.
+
+| Branch trigger | Where it is checked (squad + step) | Downstream effect | Audit trail | User-visible? |
+|---|---|---|---|---|
+| [REQUIRED — every PRD-named skip / opt-out / suppress] | [REQUIRED] | [REQUIRED] | [REQUIRED] | yes/no |
 
 ### Detail 3.B — Error Response Catalog _(satisfies: FMC, ACV — required for FMC ≥ 7.0)_
 Consistent error response shape across all endpoints:
@@ -563,6 +665,21 @@ Reverse:
 |---|---|
 | [REQUIRED] | [REQUIRED] |
 
+#### UI / Consumer Surface Coverage
+| PRD-named surface | Consumer | Required reads (BE) | Required writes (BE) | FE component | Status surface (which field/event reflects state) |
+|---|---|---|---|---|---|
+| [REQUIRED — every page/modal/panel/chatbot flow/magic-link view from PRD] | web/chatbot/mobile/support | [REQUIRED] | [REQUIRED] | [REQUIRED] | [REQUIRED] |
+
+#### Role Coverage
+| PRD role | Authorization mechanism | Endpoints permitted (BE) | UI surface visibility (FE) | Cross-tenant? | Audit trail |
+|---|---|---|---|---|---|
+| [REQUIRED — every role from PRD, including support / read-only / internal] | [JWT scope / magic-token / service token / IP allowlist] | [REQUIRED] | [REQUIRED] | yes/no | [REQUIRED] |
+
+#### PRD Section Coverage
+| PRD section # | Title | Where covered (RFC section) or `n/a — reason` |
+|---|---|---|
+| [REQUIRED — one row per numbered PRD section] | [REQUIRED] | [REQUIRED] |
+
 > Cross-layer check: flag any PRD requirement where FE and BE RFC sections contradict on
 > scope or behavior. These are blockers.
 
@@ -570,6 +687,14 @@ Reverse:
 | Decision | Chosen option | Alternatives rejected | Why rejected | Layer |
 |---|---|---|---|---|
 | [REQUIRED] | [REQUIRED] | [REQUIRED] | [REQUIRED] | FE / BE / both |
+
+The decision table MUST close, at minimum, the following (mark `n/a — reason` if truly inapplicable):
+- Per-status lifecycle for each status enum (retention, visibility, restore semantics)
+- Soft-delete vs hard-delete policy for each entity
+- Cross-squad responsibility for every multi-step flow that spans services
+- Inbound webhook (callback) ownership and shape for every async integration
+- Opt-out / skip / branch policy ownership for non-error flow branches
+- Reuse-vs-new decision for every newly proposed endpoint (`reused` / `extended` / `new-with-justification`)
 
 > Explicitly note any decision where FE and BE could disagree (REST vs gRPC, offset vs cursor
 > pagination, casing, error shape) and confirm both layers are aligned.
@@ -586,10 +711,24 @@ Pattern files cited per layer.]
 [REQUIRED: end-to-end sequence per scenario, including failure paths.]
 
 ### Database Model _(satisfies: DMS)_
-[REQUIRED: same DDL detail as Backend template §2 Database Model.]
+[REQUIRED: same DDL detail as Backend template §2 Database Model, including the
+**Per-status lifecycle** sub-table for every table with a status enum.]
 
 ### APIs _(satisfies: ACV, CNT)_
-[REQUIRED: same endpoint table as Backend template §2 APIs. Reference Swagger / OpenAPI.]
+[REQUIRED: same as Backend template §2 APIs — split into **Outbound endpoints**
+(consumers call us) and **Inbound webhooks** (other services call us). Each
+outbound row carries a `Reuse?` column tagging the endpoint as `reused` /
+`extended` / `new-with-justification` per Phase 2's Existing API check. Reference Swagger / OpenAPI.]
+
+#### Outbound endpoints (consumers call us)
+| Endpoint | Method | AuthN/AuthZ | Request schema | Response schema | Status codes | Idempotency | Versioning | Reuse? |
+|---|---|---|---|---|---|---|---|---|
+| [REQUIRED] | [REQUIRED] | [REQUIRED] | [REQUIRED] | [REQUIRED] | [REQUIRED] | [REQUIRED] | [REQUIRED] | reused / extended / new-with-justification |
+
+#### Inbound webhooks (other services call us)
+| Endpoint | Method | AuthN/AuthZ | Source service | Request schema | Response schema | Status codes | Idempotency | Versioning |
+|---|---|---|---|---|---|---|---|---|
+| [REQUIRED] | [REQUIRED] | [REQUIRED] | [REQUIRED] | [REQUIRED] | [REQUIRED] | [REQUIRED] | [REQUIRED] | [REQUIRED] |
 
 ### Detail 2.A — UI Contract _(satisfies: CNT)_
 [Same structure as Frontend template Detail 2.A.]
@@ -608,6 +747,24 @@ Pattern files cited per layer.]
 
 ### Detail 2.F — Async Job / Event Consumer Spec _(satisfies: FMC, DIC)_
 [Same as Backend template Detail 2.C.]
+
+### Detail 2.F.1 — Responsibility Boundary Matrix _(satisfies: SBC, DEP — required when ≥ 2 services or squads collaborate)_
+For every Behavior / flow that spans more than one service:
+| Step (in execution order) | Owning squad / service | Inbound trigger | Outbound effect | Failure handler | PRD anchor |
+|---|---|---|---|---|---|
+| [REQUIRED] | [REQUIRED] | [REQUIRED] | [REQUIRED] | [REQUIRED] | [REQUIRED] |
+
+> Disagreements between this matrix and the PRD's allocation of work between
+> squads are blockers — list them in Open Questions until reconciled.
+
+### Detail 2.F.2 — State Surface Contract _(satisfies: ACV, CNT)_
+For every entity whose state is observable to a UI or a downstream consumer:
+| Entity | State field / event | Default values | Updated by (handler / job / webhook) | Read via (endpoint / event) | Stale window |
+|---|---|---|---|---|---|
+| [REQUIRED] | [REQUIRED] | [REQUIRED] | [REQUIRED] | [REQUIRED] | [REQUIRED] |
+
+> If a UI surface (Detail 1.A's UI Coverage table) needs progress / timeline /
+> badge data, every contributing field appears here.
 
 ### Detail 2.G — Cross-Layer Contract Verification _(satisfies: ACV, CNT — full-stack mandatory)_
 | Endpoint | BE response schema | FE expected schema | Match? | Gaps (casing / nullability / error shape / pagination / auth) |
@@ -659,10 +816,25 @@ For each major user action, trace the full path:
 - Frontend: input sanitization + auth token handling + CSP
 - Cross-layer: token refresh flow + session-invalidation propagation: [REQUIRED]
 
+#### Role × Endpoint Authorization Matrix
+| Role | Endpoint(s) | Permitted methods | Tenant scope (own / cross-tenant / global) | UI surface visibility (FE) | Additional constraint (e.g. read-only, undo-window) | Audit trail |
+|---|---|---|---|---|---|---|
+| [REQUIRED — every role from Detail 1.A Role Coverage] | [REQUIRED] | [REQUIRED] | [REQUIRED] | [REQUIRED] | [REQUIRED] | [REQUIRED] |
+
+> Any role from Detail 1.A that has zero rows here is a blocker — either grant
+> access or document why the service does not serve that role.
+
 ### Detail 3.A — Failure Mode Catalog (merged) _(satisfies: FMC — full-stack mandatory)_
 | Surface | FE behavior on failure | BE response on failure | Code-shape consistency check (FE handles BE's exact codes) |
 |---|---|---|---|
 | [REQUIRED] | [REQUIRED] | [REQUIRED] | yes/no |
+
+### Detail 3.A.1 — Branch & Skip Catalog _(satisfies: FMC, SBC)_
+Non-error flow branches that change downstream behavior (e.g. opt-out → skip,
+suppress flag → skip, dry-run → no-op). Distinct from failure modes.
+| Branch trigger | Where it is checked (squad + step) | Downstream effect | Audit trail | User-visible? |
+|---|---|---|---|---|
+| [REQUIRED — every PRD-named skip / opt-out / suppress] | [REQUIRED] | [REQUIRED] | [REQUIRED] | yes/no |
 
 ### Detail 3.B — Error Response Catalog (BE) _(satisfies: FMC, ACV)_
 [Same as Backend template Detail 3.B.]

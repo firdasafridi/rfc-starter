@@ -39,12 +39,16 @@ Follow this sequence strictly:
 1. **Intake**
    - Read the PRD/problem statement fully.
    - Extract goals, constraints, acceptance criteria, and non-goals.
+   - Extract every UI surface, role, and per-status lifecycle rule.
+   - Walk the PRD's table of contents and confirm every numbered section is in the extraction or marked `n/a — reason`.
    - Infer RFC type and sub-type.
 
 2. **Repo grounding**
    - Identify existing modules/services/components this change should follow.
    - Capture concrete file references to anchor design decisions.
    - Note existing patterns to preserve.
+   - **Existing API check**: before proposing any new endpoint, search the repo and related services for an existing contract. Tag each endpoint as `reused`, `extended`, or `new-with-justification`.
+   - For multi-squad flows, build the cross-squad responsibility map (per step, owner) before drafting.
 
 3. **Decision closure before drafting**
    - Resolve key architecture decisions with explicit chosen options.
@@ -54,6 +58,10 @@ Follow this sequence strictly:
 4. **Draft RFC using type template**
    - Use the matching template sections from `templates.md`.
    - Fill every required contract field; if unknown, ask targeted questions.
+   - Fill the required matrices: PRD Section Coverage, UI / Consumer Surface Coverage,
+     Role Coverage, Per-Status Lifecycle, APIs (Outbound + Inbound),
+     Responsibility Boundary, State Surface Contract, Role × Endpoint Authorization,
+     Branch & Skip Catalog. Each accepts `n/a — reason` but never silent omission.
    - Include rollout, rollback, observability, and acceptance criteria.
 
 5. **Run readiness checklist**

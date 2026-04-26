@@ -25,6 +25,9 @@ Skip this whole section with **`n/a` (no sources beyond PRD + repo)** when you d
 
 - Every PRD requirement maps to an RFC section.
 - Every major RFC decision has a PRD driver (or explicit self-contained justification for no-PRD RFCs).
+- Every numbered PRD section appears in Detail 1.A's PRD Section Coverage table or is explicitly marked `n/a — reason`.
+- Every UI surface in the PRD has a row in Detail 1.A's UI / Consumer Surface Coverage table.
+- Every role in the PRD has a row in Detail 1.A's Role Coverage table AND in §3 Role × Endpoint Authorization matrix.
 
 ## C) Decision closure
 
@@ -36,15 +39,22 @@ Skip this whole section with **`n/a` (no sources beyond PRD + repo)** when you d
 
 - Frontend contracts are typed/specified.
 - Backend endpoint contracts include request/response/errors/auth/versioning.
+- Inbound webhooks (other services → us) appear in the §2 APIs Inbound table with the same fields, not only as prose.
+- Every newly proposed endpoint is tagged `reused`, `extended`, or `new-with-justification`.
+- Every status enum has a per-status lifecycle row (visibility, retention, restore, transitions) in §2 Database Model.
+- Every UI surface listed in Detail 1.A has a backing read endpoint in §2 APIs OR a one-line `n/a — covered by writes` note.
+- Every entity that surfaces state to a UI or downstream consumer has a State Surface Contract row.
 - Schema/data model changes are DDL-level where applicable.
 - Cross-layer contracts are aligned for full-stack scope.
 
 ## E) Failure and integrity
 
 - Every external call has timeout/retry/failure behavior.
+- Every non-error skip / opt-out / suppress branch named in the PRD has a Branch & Skip Catalog row with explicit owner.
 - Write paths define transaction boundaries and partial-failure handling.
 - Idempotency and duplicate handling are defined where needed.
 - Concurrency/collision handling is explicit for shared resources.
+- For every multi-squad flow, the Responsibility Boundary Matrix exists and matches the PRD's allocation.
 
 ## F) Rollout and operations
 
