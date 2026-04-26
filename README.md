@@ -136,4 +136,4 @@ Then hand off to **`rfc-reviewer`** for scoring, traceability checks, and verdic
 3. Fix gaps in the RFC (and re-run checklist)
 4. Re-run review until **PROCEED** (or a documented HOLD you accept)
 
-For reviewer install, scoring bands, and report shape, see [`rfc-reviewer/README.md`](../rfc-reviewer/README.md).
+For reviewer install, scoring bands, and report shape, see [`rfc-reviewer/README.md`]([../rfc-reviewer/README.md](https://github.com/firdasafridi/rfc-reviewer)).
