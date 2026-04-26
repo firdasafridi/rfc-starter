@@ -98,7 +98,7 @@ The skill then continues through Phases 1–5 and writes `./rfc-draft.md`.
 
 ---
 
-## Tips for maximising context quality
+## Tips for maximizing context quality
 
 | Tip | Detail |
 |---|---|
