@@ -36,7 +36,7 @@ Each type loads a different skeleton from `templates.md`; rubrics live in `rfc-r
 
 Default write path (unless the user asks otherwise):
 
-- `rfc-starter/output/rfc-draft.md`
+- `./rfc-draft.md` — written directly into the **current working directory**, no `output/` subfolder
 
 Do not overwrite an existing draft without explicit confirmation.
 
@@ -96,7 +96,7 @@ RFC type (if known): <frontend|backend|full-stack>
 ### After drafting
 
 ```
-Review the RFC at rfc-starter/output/rfc-draft.md using rfc-reviewer
+Review the RFC at ./rfc-draft.md using rfc-reviewer
 ```
 
 ## Project structure
@@ -107,9 +107,12 @@ rfc-starter/
 ├── workflow.md     # Phases: PRD → repo → decisions → draft → hardening
 ├── templates.md    # Frontend / backend / full-stack Markdown templates
 ├── checklist.md    # Pre-review gate before calling rfc-reviewer
-├── output/         # Default location for rfc-draft.md
 └── README.md       # This file
 ```
+
+The drafted RFC is written to the **current working directory** (the folder where
+you invoke the skill) as `rfc-draft.md`. The skill does not create or rely on an
+`output/` subfolder.
 
 ## How it works
 
@@ -131,7 +134,7 @@ Then hand off to **`rfc-reviewer`** for scoring, traceability checks, and verdic
 
 ## Suggested loop
 
-1. Draft with `rfc-starter` → `output/rfc-draft.md`
+1. Draft with `rfc-starter` → `./rfc-draft.md` (in the current working directory)
 2. Review with `rfc-reviewer`
 3. Fix gaps in the RFC (and re-run checklist)
 4. Re-run review until **PROCEED** (or a documented HOLD you accept)

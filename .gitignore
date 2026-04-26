@@ -16,9 +16,9 @@ THEORY.MD
 
 # Output
 rfc-review-report.md
+rfc-draft.md
 
 # Environment
 .env
 .env.local
 feedback/*
-output/

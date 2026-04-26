@@ -27,10 +27,15 @@ If type is not provided, infer it from scope and touched systems.
 ## Output
 
 Write the draft RFC to:
-- `rfc-starter/output/rfc-draft.md` by default
+- `./rfc-draft.md` in the **current working directory** by default
 - or a path explicitly requested by the user
 
-Never overwrite an existing RFC without user confirmation.
+Do not create an `output/` (or any other) subfolder for the draft. Write the file
+directly into the current working directory unless the user provides a path.
+
+Never overwrite an existing RFC without user confirmation. If `rfc-draft.md`
+already exists in the current directory, ask the user whether to overwrite,
+suffix with a version (e.g. `rfc-draft-v2.md`), or write to a different path.
 
 ## Workflow
 
