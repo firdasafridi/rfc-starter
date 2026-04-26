@@ -99,15 +99,18 @@ RFC type (if known): <frontend|backend|full-stack>
 Review the RFC at ./rfc-draft.md using rfc-reviewer
 ```
 
+See [`example-prompt.md`](example-prompt.md) for a complete walkthrough that loads the full skill context (long context window) and emits an Execution Plan before drafting.
+
 ## Project structure
 
 ```
 rfc-starter/
-├── SKILL.md        # Skill entry: inputs, output path, sequence, quality bar
-├── workflow.md     # Phases: PRD → repo → decisions → draft → hardening
-├── templates.md    # Frontend / backend / full-stack Markdown templates
-├── checklist.md    # Pre-review gate before calling rfc-reviewer
-└── README.md       # This file
+├── SKILL.md            # Skill entry: inputs, output path, sequence, quality bar
+├── workflow.md         # Phases: plan → PRD → repo → decisions → draft → hardening
+├── templates.md        # Frontend / backend / full-stack Markdown templates
+├── checklist.md        # Pre-review gate before calling rfc-reviewer
+├── example-prompt.md   # Example invocation with plan-first and long context window
+└── README.md           # This file
 ```
 
 The drafted RFC is written to the **current working directory** (the folder where
@@ -118,6 +121,7 @@ you invoke the skill) as `rfc-draft.md`. The skill does not create or rely on an
 
 Authoring follows `workflow.md` (and the shorter numbered sequence in `SKILL.md`):
 
+0. **Plan** — Load all skill files (`SKILL.md`, `workflow.md`, `templates.md`, `checklist.md`) into the context window, then emit an Execution Plan (RFC type, active phases, anticipated key files, decisions to close, open questions). Wait for user acknowledgement before proceeding.
 1. **Intake** — Read PRD/problem; optional external context when it matters.
 2. **Repo grounding** — Anchor design in real modules, contracts, and patterns.
 3. **Decision closure** — Chosen options, alternatives, rejection rationale (no dangling “TBD”).

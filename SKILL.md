@@ -41,6 +41,16 @@ suffix with a version (e.g. `rfc-draft-v2.md`), or write to a different path.
 
 Follow this sequence strictly:
 
+0. **Plan** _(always first)_
+   - Load `SKILL.md`, `workflow.md`, `templates.md`, and `checklist.md` from the repository into context.
+   - Emit an **Execution Plan** to the user before producing any draft content. The plan must state:
+     - Inferred RFC type and justification.
+     - Which phases will execute (and any that will be skipped, with reason).
+     - Key repo files/modules to read in step 2 (or "will discover in Phase 2" if the repo has not been inspected yet).
+     - Major architecture decisions anticipated that Phase 3 must close.
+     - Any PRD ambiguities that require a targeted question.
+   - Wait for user acknowledgement or correction before proceeding. If the user says "proceed" or "looks good", continue.
+
 1. **Intake**
    - Read the PRD/problem statement fully.
    - Extract goals, constraints, acceptance criteria, and non-goals.
@@ -89,3 +99,4 @@ Follow this sequence strictly:
 - Authoring flow and section requirements: [workflow.md](workflow.md)
 - RFC templates by type: [templates.md](templates.md)
 - Final pre-review gate: [checklist.md](checklist.md)
+- Example invocation with plan-first and long context window: [example-prompt.md](example-prompt.md)

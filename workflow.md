@@ -2,6 +2,42 @@
 
 This workflow converts a PRD (or problem statement) into an RFC that an AI agent can implement without clarification meetings. **Optional:** pull in extra context from linked documentation, related RFCs, or architecture/theory sources when they materially affect the design.
 
+## Phase 0: Planning and Context Loading
+
+Before any decomposition or drafting work begins, produce a short **plan** and load the full skill context from the repository. This step ensures the model has a complete picture of the authoring framework before it starts filling in content.
+
+### 0.1 Load skill files from the repository
+
+Read every skill file so the entire authoring framework is in the context window before any content is generated:
+
+| File | Purpose |
+|---|---|
+| `SKILL.md` | Entry-point: inputs, output path, quality bar |
+| `workflow.md` | Phase descriptions and minimum outputs (this file) |
+| `templates.md` | Frontend / backend / full-stack template skeletons |
+| `checklist.md` | Pre-review gate items |
+
+If any file cannot be read (path not found, access error), pause and ask the user for the correct path before continuing.
+
+### 0.2 Emit a plan before execution
+
+After loading the context files, output a concise **Execution Plan** to the user before writing any draft content. The plan must cover:
+
+1. **RFC type** — inferred or stated (`frontend` / `backend` / `full-stack`), with one-sentence justification.
+2. **Phases to execute** — list every phase below that will be active (Phase 1 through Phase 5), note any that will be skipped with a one-line reason.
+3. **Key files / modules to read** — the repository paths identified as relevant anchors for Phase 2 (Codebase Context Capture). If the repo has not yet been inspected, list "will discover in Phase 2" and the areas to look at.
+4. **Known decisions to close** — major architecture choices anticipated from the PRD that Phase 3 (Decision Closure) will need to resolve.
+5. **Open questions** — anything in the PRD that is ambiguous enough to require a targeted question to the user (list them now, not mid-draft).
+
+Wait for user acknowledgement or correction of the plan before proceeding to Phase 1. If the user says "proceed" or "looks good", continue without another prompt.
+
+### 0.3 Minimum output from Phase 0
+
+- Execution Plan (numbered list as specified above).
+- Confirmation that all four skill files were loaded, or a list of any that could not be read.
+
+---
+
 ## Phase 1: PRD Decomposition
 
 **(Optional)** Assemble **external context** when it applies—anything outside the single PRD text and the live repo that could still constrain the design:
