@@ -22,3 +22,5 @@ rfc-draft.md
 .env
 .env.local
 feedback/*
+.rfc-reviewer/*
+output/*
