@@ -183,40 +183,73 @@ to a confident-sounding hallucination. Verification is non-negotiable.
 
 ## Phase 3: Decision Closure
 
+This phase produces the RFC's **Technical Decisions section** — the engineering heart of the
+document. Each significant decision gets a full ADR-format block. Reviewers will spend most
+of their time here; write it like you're presenting the trade-offs to a skeptical peer, not
+checking a box.
+
 For each major technical decision, write:
-1. chosen option
-2. alternatives considered
-3. rejection rationale
-4. implementability risks if wrong
-5. reversibility/rollback path
+1. **Context** — why this decision matters; what constraint or trade-off made it non-trivial
+2. **Options considered** — at least two (with pros/cons per option)
+3. **Decision** — which option was chosen
+4. **Rationale** — why that option over the alternatives; be specific (cite latency, cost,
+   consistency model, team expertise, operational complexity)
+5. **Consequences** — what trade-offs does this choice accept; what becomes harder
+6. **Reversibility** — migration path and cost if the decision proves wrong
+
+Minimum decisions to address (mark `n/a — reason` only if truly inapplicable):
+- Storage: which DB / table / schema approach and why
+- Sync vs async: for every operation > ~100ms or with partial-failure risk
+- Caching: what is cached, TTL, invalidation trigger, stampede protection
+- Third-party integration: SDK / direct HTTP / queue-based, and why
+- Consistency model: strong vs eventual for cross-service state
+- Multi-tenancy isolation: enforcement layer and mechanism
+- Reuse vs new: for every newly proposed endpoint or table
 
 Any unresolved major decision blocks "ready" status.
 
 > Honesty escape hatch: if no alternative was seriously considered, write
-> `no alternative considered — [reason]` rather than fabricate a rejected
-> option to fill the table.
+> `no alternative considered — [reason]` rather than fabricate a rejected option.
 
-## Phase 4: RFC Drafting (mermaid-first, agent-executable)
+## Phase 4: RFC Drafting (infra-first, decision-led, agent-executable)
 
 Use the template that matches RFC type:
 - **frontend** — design-anchored. §1 Design References (Figma per surface) +
   Detail 2.0 Design ↔ Code Mapping + Detail 2.A UI Contract (with Figma
   frame URL per component) + Detail 2.F Asset Inventory.
-- **backend** — schema-anchored, no Figma. §1 PRD-to-Schema Derivation drives
-  §2.3 DDL and §2.4 APIs. Every DDL row and endpoint traces back to a
-  PRD-to-Schema row.
+- **backend** — schema-anchored, no Figma. Lead with **Infrastructure Topology**
+  then **Technical Decisions**, then §1 PRD-to-Schema Derivation driving §2
+  DDL and APIs. Every DDL row and endpoint traces back to a PRD-to-Schema row.
 - **full-stack** — both. §1 Design References (FE half) + §1 PRD-to-Schema
   Derivation (BE half). The Cross-Layer Contract Verification table (§2.G)
   is the bridge: every endpoint must satisfy both halves.
 
+**Drafting order for backend RFCs** (follow this sequence; don't start §4 execution
+plan before §2 technical decisions are closed):
+1. **Infrastructure Topology** — deployment topology diagram + per-service
+   responsibility table (use cases, internal calls, external APIs). This is the
+   first thing reviewers read.
+2. **Technical Decisions** (ADR blocks) — the engineering heart; close all major
+   decisions before filling DDL and API tables.
+3. Repo Reading Guide (Detail 2.0) + Source Verification
+4. Architecture diagrams (component, ER, state, branch/skip) including the
+   **service use cases & third-party connections table** per service
+5. **Sequence diagrams** — end-to-end, showing all infra-layer participants:
+   load balancer, cache layer (hit vs miss path), DB (primary vs read replica),
+   async queue + worker pod, external APIs with timing annotations. At least one
+   happy-path diagram and one failure-path diagram per external call.
+6. DDL, APIs, Data Integrity, Async Job specs
+7. HA/Security, Rollout Plan, Execution Plan
+
 Required drafting rules:
 - replace vague words with measurable or typed statements
 - **every diagram is a mermaid fenced block**:
-  - `flowchart` for component / repo map / branch & skip flow
-  - `sequenceDiagram` for happy path and at least one failure path per scenario
+  - `flowchart` for deployment topology / component / repo map / branch & skip flow
+  - `sequenceDiagram` for end-to-end flows; participants must include infra layers
+    (LB, cache, DB primary vs replica, queue, worker, external APIs)
   - `erDiagram` for the data model (backend / full-stack)
   - `stateDiagram-v2` for every status enum with non-trivial transitions
-- define failure handling per external interaction
+- every external API call has a timeout, failure path, and retry strategy defined
 - define rollout and rollback in deploy-order terms
 - define observability with named metrics/logs/alerts
 - **define the Agent Execution Plan** — ordered chunks, each with:
@@ -232,10 +265,26 @@ Required drafting rules:
 
 Before handoff:
 - run the checklist in `checklist.md`. The checklist is organised around
-  agent-execution gates: repo reading guide, mermaid diagrams, contracts,
-  failure handling, rollout, execution plan, verification recipe.
+  agent-execution gates: infra topology, technical decisions, repo reading guide,
+  mermaid diagrams, contracts, failure handling, rollout, execution plan, verification recipe.
 - (Optional, only if Phase 1 used external context) include **§0 External
   context inputs** — otherwise mark that section `n/a`.
+- **Infrastructure Topology gates**:
+  - Deployment topology mermaid diagram present with all runtime components
+    (LB, pods, DB primary/replica, cache, queue, external APIs)
+  - Per-service responsibility table complete with use cases, internal calls,
+    and external/third-party APIs named
+- **Technical Decisions gates**:
+  - Every significant decision has a full ADR block (context, options, decision,
+    rationale, consequences, reversibility)
+  - Minimum coverage checklist addressed (storage, sync/async, caching,
+    third-party, consistency, multi-tenancy, reuse/new)
+  - §1 Detail 1.B summary index filled, pointing to §2 ADR blocks
+- **Sequence diagram gates** (backend/full-stack):
+  - Every sequence diagram shows full infra stack (LB, cache hit/miss, DB
+    primary vs replica, queue, worker, external APIs with timing annotations)
+  - Every external API call has at least one failure-path diagram
+  - Service use cases & third-party connections table complete
 - ensure every required table/section is filled or explicitly marked not
   applicable with reason
 - if the RFC cites external links or paths, ensure each still belongs in the

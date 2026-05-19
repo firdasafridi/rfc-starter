@@ -170,15 +170,50 @@ inferred from stack heuristics.
 - When a fact cannot be verified, the row is moved to §5 Open Questions
   rather than filled with a plausible-but-unverified value.
 
-## D) Decision closure
+## D) Infrastructure Topology _(backend / full-stack)_
+
+- **Deployment topology diagram** present: shows load balancer/API gateway, service
+  pods (with replica count where known), DB primary + read replica, cache, async
+  queue, worker pods, and every external API.
+- **Per-service responsibility table** complete: for each service touched by this RFC,
+  the table has use cases (high-level), internal service calls (with owning team), and
+  external/third-party APIs named.
+- All mermaid nodes in the topology correspond to real deployed infrastructure —
+  not invented components.
+
+## D1) Technical Decisions _(ADR-format)_
+
+- **Every significant decision has a full ADR block** with: Context, Options considered
+  (at least two, with pros/cons), Decision, Rationale (specific — not just "simpler"),
+  Consequences, and Reversibility.
+- **Minimum coverage checklist** is addressed (mark `n/a — reason` if inapplicable):
+  - [ ] Storage: which DB / table / schema and why
+  - [ ] Sync vs async: for every operation > ~100ms or with partial-failure risk
+  - [ ] Caching: what is cached, TTL, invalidation trigger, stampede protection
+  - [ ] Third-party integration: SDK / direct HTTP / queue-based, and why
+  - [ ] Consistency model: strong vs eventual for cross-service state
+  - [ ] Multi-tenancy isolation: enforcement layer and mechanism
+  - [ ] Reuse vs new: for every newly proposed endpoint or table
+- **§1 Detail 1.B summary index** is filled and points to the §2 ADR blocks.
+- No fabricated "alternatives rejected" — rows where no alternative was seriously
+  considered say `no alternative considered — [reason]`.
+
+## D2) Decision closure (general)
 
 - Every major decision has one chosen option.
-- Alternatives are documented and rejected with rationale.
 - No unresolved "TBD", "maybe", or "X or Y".
 
 ## E) Mermaid diagrams
 
+- **Infrastructure Topology**: deployment topology mermaid `flowchart` showing
+  LB, pods, DB primary/replica, cache, queue, worker, external APIs.
 - Component / architecture diagram is a mermaid `flowchart` (or `graph`).
+- **Service use cases & third-party connections table** present (backend/full-stack).
+- **Sequence diagrams** (backend/full-stack):
+  - Participants include the full infra stack: LB, cache (with hit/miss branch),
+    DB (primary vs read replica), queue, worker pod, external APIs.
+  - Timing annotations present for any external API calls that affect design decisions.
+  - Every external API call has at least one failure-path `sequenceDiagram`.
 - Every scenario has a mermaid `sequenceDiagram` with at least one failure path.
 - Backend / full-stack: data model is a mermaid `erDiagram`.
 - Every status enum has a mermaid `stateDiagram-v2`.

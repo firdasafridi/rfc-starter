@@ -640,7 +640,7 @@ discussion: <Slack channel / thread URL>
 ## Sections at a Glance
 
 1. Overview _(incl. §1 PRD-to-Schema Derivation — entities, business rules, contracts; **no Figma**)_
-2. Technical Design _(Repo Reading Guide → mermaid component+ER+state+sequence → DDL → APIs → integrity / concurrency / async specs)_
+2. Technical Design _(Infrastructure Topology → Technical Decisions [ADR] → Repo Reading Guide → Architecture & Service Map → Sequence Diagrams [full infra layers] → DDL → APIs → integrity / concurrency / async specs)_
 3. High-Availability & Security
 4. Backwards Compatibility and Rollout Plan _(incl. §4 Agent Execution Plan + Verification & Rollback Recipe)_
 5. Concern, Questions, or Known Limitations
@@ -719,21 +719,24 @@ Reverse (RFC → PRD):
 > No-PRD exception: tech-debt / infra RFCs may have no PRD. Replace with self-contained
 > problem + success criteria + non-goals.
 
-### Detail 1.B — Decisions Closed
-| Decision | Chosen option | Alternatives rejected | Why rejected |
+### Detail 1.B — Key Decisions Summary _(full ADR treatment in §2 Technical Decisions)_
+Write §2 Technical Decisions first. Copy the chosen option here as a quick-reference index so
+reviewers can scan the list without reading every ADR block.
+
+| # | Decision | Chosen option | §2 block |
 |---|---|---|---|
-| [REQUIRED] | [REQUIRED] | [REQUIRED — or `no alternative considered — [reason]`] | [REQUIRED — or `n/a — single viable option`] |
+| [REQUIRED — e.g. 1] | [REQUIRED — e.g. "Sync vs async billing deduction"] | [REQUIRED — e.g. "Async (Sidekiq)"] | [REQUIRED — e.g. "Technical Decisions → Decision 1"] |
 
-> Honesty rule: if no alternative was seriously considered, write `no
-> alternative considered — [reason]` rather than fabricate a rejected option.
-
-The decision table MUST close, at minimum, the following (mark `n/a — reason` if truly inapplicable):
+Minimum decisions to cover (mark `n/a — reason` if truly inapplicable):
+- Storage approach (which DB / table / schema and why)
+- Sync vs async for each long-running or partial-failure-risk operation
+- Caching strategy (what is cached, TTL, invalidation trigger)
+- Third-party integration method (SDK / direct HTTP / queue-based)
+- Consistency model for cross-service state (strong vs eventual)
+- Multi-tenancy isolation enforcement point
+- Reuse-vs-new for every newly proposed endpoint (`reused` / `extended` / `new-with-justification`)
 - Per-status lifecycle for each status enum (retention, visibility, restore semantics)
-- Soft-delete vs hard-delete policy for each entity
-- Cross-squad responsibility for every multi-step flow that spans services
-- Inbound webhook (callback) ownership and shape for every async integration
-- Opt-out / skip / branch policy ownership for non-error flow branches
-- Reuse-vs-new decision for every newly proposed endpoint (`reused` / `extended` / `new-with-justification`)
+- Soft-delete vs hard-delete policy per entity
 
 ### Detail 1.C — Per-Story Change Map _(human-readable index, organised by user story)_
 
@@ -768,6 +771,109 @@ it — without crawling the DDL / APIs / async-job tables in §2.
 ---
 
 ## 2. Technical Design
+
+### Infrastructure Topology _(start here — understand the runtime before the code)_
+
+Before designing the logic, map the infrastructure: where the code runs, how traffic reaches
+it, what it reads from and writes to, and which external systems it depends on.
+This is the operational picture reviewers debate first.
+
+#### Deployment topology
+Show every runtime component: load balancer/API gateway, service pods, cache, queues, databases
+(primary + read replica), and external APIs. Annotate protocols (HTTP/gRPC/AMQP) and scaling
+factors (×N pods) where known.
+
+```mermaid
+flowchart TB
+  internet([Internet]) -->|HTTPS| lb[Load Balancer / API Gateway]
+  lb -->|HTTP| pods["<service>-api pods ×N\n(stateless, HPA-managed)"]
+  pods -->|read / write| db_primary[(Postgres primary)]
+  pods -->|read-only| db_replica[(Postgres replica)]
+  pods -->|get / set| cache[(Redis cache)]
+  pods -->|enqueue| queue[["Sidekiq / Kafka queue"]]
+  queue -->|consume| workers["<service>-worker pods ×M"]
+  workers -->|write| db_primary
+  pods -->|HTTPS| ext1(["External API\n(Meta / Stripe / …)"])
+  pods -->|internal HTTP/gRPC| svc2(["Sibling service\n(Billing / Auth / …)"])
+```
+
+#### Per-service responsibility
+For each service this RFC introduces or significantly changes, draw a mermaid chart showing
+its use cases and what it connects to — internal services and external/third-party APIs.
+One diagram per service, or a combined diagram if the services are tightly coupled.
+
+```mermaid
+flowchart LR
+  subgraph svc_a["<service-a> (e.g. hub-service)"]
+    ep1["POST /<resource>\n(use case 1)"]
+    ep2["GET /<resource>\n(use case 2)"]
+    wh["POST /webhooks/<event>\n(inbound webhook)"]
+  end
+
+  subgraph svc_b["<service-b> (e.g. hub-core)"]
+    uc1["<PrimaryUseCase>\n(business logic)"]
+    uc2["<SecondaryUseCase>"]
+    uc3["<WebhookHandler>"]
+  end
+
+  ep1 --> uc1
+  ep2 --> uc2
+  wh  --> uc3
+
+  uc1 -->|"HTTPS — <protocol>"| ext1(["External API\n(e.g. Meta Cloud API)"])
+  uc1 -->|"async queue"| queue[["Worker / Queue\n(e.g. Billing deduction)"]]
+  uc2 -->|"internal HTTP/gRPC"| svc_c(["Sibling service\n(e.g. Billing, owner: billing squad)"])
+```
+
+> Add one diagram per service (or one combined diagram). Every external API and internal
+> service call must appear as a labelled edge — including the protocol and owner team.
+
+---
+
+### Technical Decisions _(ADR-format — the engineering heart of the RFC)_
+
+Each significant architecture or design decision gets its own block. The goal is to capture
+**why** this approach was chosen, what trade-offs were accepted, and how to reverse it if wrong.
+A summary index lives in §1 Detail 1.B.
+
+---
+
+#### Decision 1: [Title]
+
+**Context**
+[REQUIRED: Why does this decision matter? What constraint, requirement, or trade-off made it non-trivial?]
+
+**Options considered**
+- **Option A — [name]**: [one-line description]
+  - Pros: [bullet]
+  - Cons: [bullet]
+- **Option B — [name]**: [one-line description]
+  - Pros: [bullet]
+  - Cons: [bullet]
+
+**Decision**: Option A
+
+**Rationale**
+[REQUIRED: Why A over B? Cite latency budget, operational complexity, consistency model, team expertise, cost, or reversibility — not just "simpler".]
+
+**Consequences**
+[REQUIRED: What trade-offs does this choice accept? What becomes harder because of it?]
+
+**Reversibility**
+[REQUIRED: How would you undo this if it proves wrong? Migration path and cost estimate.]
+
+---
+
+> Add one block per significant decision. **Minimum coverage** (mark `n/a — reason` if not applicable):
+> - Storage: which DB / table / schema approach and why
+> - Sync vs async: for every operation > ~100ms or with partial-failure risk
+> - Caching: what is cached, TTL, invalidation trigger, stampede protection
+> - Third-party integration: SDK / direct HTTP / queue-based, and why
+> - Consistency model: strong vs eventual for cross-service state
+> - Multi-tenancy isolation: enforcement layer and mechanism
+> - Reuse vs new: for every newly proposed endpoint or table
+
+---
 
 ### Detail 2.0 — Repo Reading Guide _(read this first; the agent must understand the existing code as documentation before writing any new code)_
 
@@ -830,6 +936,8 @@ blocker (move to §5 Open Questions) — do not invent.
 ### Detail 2.1 — Architecture (mermaid)
 
 #### Component diagram
+Show the code-level architecture: handlers, services, repositories, workers, and how they
+connect to the datastores and queues identified in the Infrastructure Topology above.
 ```mermaid
 flowchart TB
   client([Caller / FE / partner]) --> api[/<service>-api/]
@@ -841,6 +949,29 @@ flowchart TB
   kafka --> consumer[<Feature>Consumer]
   consumer --> downstream([Downstream service])
 ```
+
+#### Service use cases & third-party connections
+Draw a mermaid chart per service showing the use cases it owns in this RFC and what it
+connects to. This supplements the component diagram above by labelling **what** each
+service does (use case name) and **who** it talks to (internal + external), making the
+boundaries explicit before the sequence diagrams show the call flow.
+
+```mermaid
+flowchart LR
+  subgraph svc["<service> (e.g. hub-service)"]
+    uc1["Use Case 1\n(POST /endpoint-a)"]
+    uc2["Use Case 2\n(GET /endpoint-b)"]
+    uc3["Use Case 3\n(inbound webhook)"]
+  end
+
+  uc1 -->|"HTTPS"| ext1(["3rd-party API\n(e.g. Meta Cloud API v19)"])
+  uc1 -->|"async"| worker[["Worker\n(e.g. BillingWorker)"]]
+  uc2 -->|"in-process"| lib(["Shared gem / lib\n(e.g. hub-core)"])
+  uc3 -->|"DB write"| db[(Postgres)]
+```
+
+> One diagram per service is recommended. Annotate edge labels with protocol (HTTPS,
+> gRPC, in-process, async) and, for internal services, the owning team.
 
 #### Data model (mermaid `erDiagram`)
 ```mermaid
@@ -880,36 +1011,72 @@ flowchart TD
   exec --> done
 ```
 
-### Detail 2.2 — Sequence (mermaid, one per scenario incl. failure paths)
+### Detail 2.2 — Sequence (mermaid, end-to-end across all infra layers)
+
+Draw one diagram per key scenario. Participants must reflect the full runtime stack from
+the Infrastructure Topology — include load balancer, cache layer, DB (distinguish primary
+vs replica), async queue, worker pods, and external APIs. This is end-to-end, not just
+service-to-service. Annotate timing budgets (e.g. `Note right of ExtAPI: p99 ~800ms`)
+where they affect design decisions.
+
+**Happy path — [scenario name]**
 ```mermaid
 sequenceDiagram
-  actor C as Caller
-  participant API as <service>-api
+  actor Agent as Agent (FE)
+  participant LB as Load Balancer
+  participant API as <service>-api pod
+  participant Cache as Redis cache
   participant SVC as <Feature>Service
-  participant DB as Postgres
-  participant Q as Kafka
-  C->>API: POST /resource
-  API->>SVC: handle(req)
-  SVC->>DB: BEGIN
-  SVC->>DB: INSERT row
-  alt success
-    SVC->>DB: INSERT outbox row
-    SVC->>DB: COMMIT
-    SVC-->>API: 201
-    API-->>C: 201
-    Note over Q: outbox relay → Kafka (async)
-  else conflict
-    DB-->>SVC: unique violation
-    SVC->>DB: ROLLBACK
-    SVC-->>API: 409
-    API-->>C: 409
-  else timeout
-    SVC--xDB: stmt timeout
-    SVC->>DB: ROLLBACK
-    SVC-->>API: 504
-    API-->>C: 504
+  participant DB_W as Postgres primary
+  participant DB_R as Postgres replica (read)
+  participant Q as Sidekiq / Kafka
+  participant Worker as <Worker> pod
+  participant ExtAPI as External API
+
+  Agent->>LB: POST /resource (HTTPS)
+  LB->>API: HTTP (round-robin)
+  API->>Cache: GET cache_key
+  alt cache hit
+    Cache-->>API: cached payload
+    API-->>Agent: 200 (cached)
+  else cache miss
+    Cache-->>API: nil
+    API->>SVC: handle(params)
+    SVC->>DB_W: BEGIN; INSERT row; INSERT outbox
+    DB_W-->>SVC: COMMIT OK
+    SVC->>ExtAPI: POST /external-action
+    Note right of ExtAPI: p99 ~500ms (NDA doc §3)
+    ExtAPI-->>SVC: 200 { id: "ext-xyz" }
+    SVC->>DB_W: UPDATE row.external_id
+    SVC->>Cache: SET cache_key TTL 5m
+    SVC->>Q: enqueue BillingWorker
+    SVC-->>API: Success({ id: row.id })
+    API-->>Agent: 200 { data: { id: "..." } }
+    Note over Q,Worker: async — worker picks up within seconds
+    Worker->>DB_W: INSERT billing_event
   end
 ```
+
+**Failure path — [external API timeout]**
+```mermaid
+sequenceDiagram
+  participant API as <service>-api pod
+  participant SVC as <Feature>Service
+  participant DB_W as Postgres primary
+  participant ExtAPI as External API
+
+  API->>SVC: handle(params)
+  SVC->>DB_W: BEGIN; INSERT row
+  SVC->>ExtAPI: POST /external-action
+  Note right of ExtAPI: timeout after 10s
+  ExtAPI--xSVC: no response
+  SVC->>DB_W: ROLLBACK
+  SVC-->>API: Failure("External API timeout")
+  API-->>API: return 422
+```
+
+> **Rule**: every external API call (ExtAPI, sibling service, queue) must have at least one
+> failure-path diagram. Silently swallowed failures are blockers.
 
 ### Detail 2.3 — Database Model (DDL)
 [REQUIRED: full DDL for every new or altered table.]
@@ -1157,11 +1324,14 @@ future scalability plan (partitioning, sharding) with timeframe.]
 
 - yes | no
 - If no, list exactly what is missing from these execution-readiness gates:
+  - **Infrastructure Topology** — deployment topology diagram present; per-service responsibility table complete with use cases, internal calls, and external/third-party APIs
+  - **Technical Decisions** — one ADR-format block per significant decision; minimum coverage list addressed (storage, sync/async, caching, third-party integration, consistency, multi-tenancy, reuse/new)
   - **§1 PRD-to-Schema Derivation** — every PRD-described entity / attribute / rule mapped to table.column, endpoint/event, and enforcement point (no Figma needed for backend RFCs)
+  - **Detail 1.B Key Decisions Summary** — index table filled, pointing to §2 Technical Decisions blocks
   - **Detail 1.C Per-Story Change Map** — every PRD user story has exactly one row with layer scope + concrete BE changes + verifiable AC; out-of-scope stories say `n/a — covered in <FE RFC link>`
   - Repo Reading Guide (Detail 2.0) — anchors named, contracts to reuse classified, reading order set
   - **Source Verification table complete** — every anchor / pattern / contract has concrete evidence (no plausible-but-unverified rows)
-  - Mermaid diagrams: component, ER, state, sequence, branch/skip
+  - Mermaid diagrams: deployment topology, component, ER, state, sequence (end-to-end with infra layers + failure paths), branch/skip; service use case & connection table complete
   - DDL complete with per-status lifecycle table; every row traces back to a §1 PRD-to-Schema row
   - APIs table: outbound + inbound webhooks; every new endpoint tagged reused/extended/new-with-justification
   - Data Integrity Matrix complete; Concurrency Collision Map complete

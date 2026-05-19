@@ -11,18 +11,23 @@ package that an autonomous coding agent can read, understand the existing
 codebase from, and then execute against — without follow-up clarification
 meetings.
 
-The RFC is built around three pillars:
+The RFC is built around four pillars:
 
-1. **Repo as documentation** — every design decision is anchored in real files
+1. **Infrastructure-first** — the RFC opens with a deployment topology (pods,
+   LB, databases, queues, external APIs) and a per-service responsibility table
+   before any code architecture. Reviewers see the operational picture first.
+2. **Decision-led (ADR-format)** — every significant architecture or design
+   choice gets a full ADR block: context, options with pros/cons, decision,
+   consequences, reversibility. This is the engineering heart of the RFC —
+   not a table footnote.
+3. **Repo as documentation** — every design decision is anchored in real files
    already in the repository. The agent reads the existing code first (via the
    §2 Repo Reading Guide) and treats it as the source of truth for patterns,
    contracts, and conventions.
-2. **Mermaid-first diagrams** — architecture, sequence, ER, state, and branch
-   diagrams are mermaid fenced blocks the agent can read and edit in-place. No
-   draw.io / Lucidchart / Excalidraw exports as primary specs.
-3. **Executable call-to-action** — the §4 Execution Plan emits ordered chunks
-   with file paths, commands, and verifiable acceptance criteria, plus a
-   Verification & Rollback Recipe the agent can run.
+4. **Executable call-to-action** — sequence diagrams cover all infra layers
+   (LB → service → cache → DB primary/replica → queue → worker → external API);
+   the §4 Execution Plan emits ordered chunks with file paths, commands, and
+   verifiable acceptance criteria, plus a Verification & Rollback Recipe.
 
 Optional: hand the finished RFC to `rfc-reviewer` for a second-pass score.
 That handoff is supplementary; the primary gate is **§7 Ready for agent
@@ -132,12 +137,25 @@ Follow this sequence strictly:
    - Set the §7 marker: "Ready for agent execution: yes/no".
    - If no, list exactly what is missing per the §7 gates.
    - (Optional) suggest `rfc-reviewer` for a second-pass score.
+   - (Optional) suggest `rfc-summary` to generate a shareable `rfc-summary.md`
+     containing topology, sequence diagrams, key decisions, open blockers, and
+     rollout — without the full engineering detail.
 
 ## Quality bar
 
+- **Infrastructure topology is required and comes first** — deployment diagram with
+  LB, pods, DB primary/replica, cache, queue, external APIs; per-service use case and
+  third-party connection table.
+- **Technical Decisions are ADR-format, not a table** — each decision has context,
+  options with pros/cons, decision, consequences, and reversibility. Minimum coverage
+  checklist (storage, sync/async, caching, third-party, consistency, multi-tenancy,
+  reuse/new) must be addressed.
+- **Sequence diagrams show the full infra stack** — LB, cache (hit/miss), DB
+  (primary vs replica), queue + worker, external APIs with timing notes. One happy-path
+  + one failure-path per external call.
 - Prefer explicit schemas/contracts over prose summaries.
 - Every diagram is a mermaid fenced block.
-- Every external interaction defines failure behavior.
+- Every external API call defines timeout, failure behavior, and retry strategy.
 - Every implementation chunk has files, commands, and verifiable acceptance criteria.
 - Every chunk's acceptance criteria are assertable (test passes, query returns,
   metric crosses threshold) — not subjective ("looks good").
